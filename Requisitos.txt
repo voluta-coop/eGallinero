@@ -1,0 +1,12 @@
+- Apertura y cierre de la puerta programable.
+- Posibilidad de añadir sensores/actuadores.
+- Conexión WiFi
+- Alimentación con batería y carga solar o por cable microUSB.
+- Posibilidad de añadir periféricos que se comuniquen por I2C o SPI.
+- Tener varios pulsadores para realizar configuraciones.
+- Tener varios leds para mostrar información.
+- Caja impresa en 3D
+- Recibir información acerca del estado del gallinero por un bot de Telegram
+- Introducción del número de huevos y su coteo mediante el bot de Telegram
+- Envío de la información a una plataforma IoT cómo thingsboard
+
