@@ -1,12 +1,33 @@
-- Apertura y cierre de la puerta programable.
-- Posibilidad de añadir sensores/actuadores.
-- Conexión WiFi
-- Alimentación con batería y carga solar o por cable microUSB.
-- Posibilidad de añadir periféricos que se comuniquen por I2C o SPI.
-- Tener varios pulsadores para realizar configuraciones.
-- Tener varios leds para mostrar información.
-- Caja impresa en 3D
-- Recibir información acerca del estado del gallinero por un bot de Telegram
-- Introducción del número de huevos y su coteo mediante el bot de Telegram
-- Envío de la información a una plataforma IoT cómo thingsboard
+- Apertura y cierre de la puerta programable mediante un servo de rotación continua.
 
+- Conexión WiFi
+
+- Alimentación mediante fuente de alimentación con microUSB o jack
+
+- Posibilidad de añadir periféricos que se comuniquen por I2C, Serie o SPI.
+
+- Tener 2 pulsadores para realizar configuraciones.
+
+- Tener 2 leds para mostrar información.
+
+- Caja impresa en 3D
+
+- Recibir información acerca del estado del gallinero por un bot de Telegram
+
+- Introducción del número de huevos y su coteo mediante el bot de Telegram
+
+- Envío de la información a una plataforma IoT como thingsboard
+
+- Sensores previstos para añadir:
+	· DHT11/22
+	· 2 finales de carrera o similar.
+	· LDR
+	· Sensores de distancia para medir el agua y el pienso.
+	· 1 entradas de lectura analógica extra.
+	· 3 etrandas/salidas digitales extra.
+	
+- Buses de comunicación disponibles:
+	· I2C
+	· Comunicación serie (RX TX)
+	· SPI
+	
