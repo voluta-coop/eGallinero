@@ -7,9 +7,9 @@ Estos son nuestros canales de comunicación:
 
 [**Instagram**](https://www.instagram.com/voluta.coop/)  
 
-[**LinkedIn**](https://www.linkedin.com/company/volu)  
+[**LinkedIn**](https://www.linkedin.com/company/voluta-coop/)  
 
-[**Facebook**](https://www.facebook.com/Volutacoop-1)  
+[**Facebook**](https://www.facebook.com/Volutacoop-111133700786503/)  
 
 [**Canal de Telegram**](https://t.me/eGallinero)  
 
