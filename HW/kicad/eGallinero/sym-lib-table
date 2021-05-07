@@ -1,0 +1,3 @@
+(sym_lib_table
+  (lib (name eGallinero)(type Legacy)(uri ${KIPRJMOD}/eGallinero.lib)(options "")(descr ""))
+)
