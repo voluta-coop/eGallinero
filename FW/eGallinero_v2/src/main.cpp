@@ -16,7 +16,7 @@
 #define DIST_MIN_AGUA 6
 #define DIST_MAX_PIENSO 50
 #define DIST_MIN_PIENSO 6
-#define BOT_TOKEN "XXXXXXXXXX:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+#define BOT_TOKEN "1734935708:AAE8JzUMjqdGA6_K_cLmFAsl9Mfd5kmDR3I"
 #define CHAT_ID "XXXXXXXXX"
 #define NIVEL_ALERTA_PIENSO 10
 #define NIVEL_ALERTA_AGUA 10
@@ -256,8 +256,7 @@ void handleNewMessages(int numNewMessages)
     String text = bot.messages[i].text;
     
     if(text == "Abrir" || text == "abrir") {
-        Serial.print("Abierto: ");
-        Serial.println(abierto);
+
         if(abierto == true) bot.sendMessage(CHAT_ID, "La puerta ya está abierta.", "");
         else{
             cerrar = false;
@@ -265,8 +264,7 @@ void handleNewMessages(int numNewMessages)
         }
     }
     else if (text = "Cerrar" || text == "cerrar") {
-        Serial.print("Cerrado: ");
-        Serial.println(cerrado);
+
         if(cerrado == true) bot.sendMessage(CHAT_ID, "La puerta ya está cerrada.", "");
         else{
             cerrar = true;
@@ -333,23 +331,8 @@ void niveles(){
         media_agua = lec_agua/N_LEC;
         media_pienso = lec_pienso/N_LEC;
 
-        Serial.print("Media agua: ");
-        Serial.println(media_agua);
-        Serial.println();
-        Serial.print("Media pienso: ");
-        Serial.println(media_pienso);
-
-        media_agua = 20;
-        media_pienso = 30;
-
         nivel_agua = map(media_agua,DIST_MIN_AGUA,DIST_MAX_AGUA,100,0);
         nivel_pienso = map(media_pienso,DIST_MIN_PIENSO,DIST_MAX_PIENSO,100,0);
-
-        Serial.print("Agua: ");
-        Serial.println(nivel_agua);
-        Serial.println();
-        Serial.print("Pienso: ");
-        Serial.println(nivel_pienso);
 
         if((media_pienso =! 0) && (media_agua != 0)) niveles_ok = true;
         else niveles_ok = false;
@@ -437,7 +420,7 @@ void loop() {
                     t_p_2 = millis();
                 }
             }
-            Serial.println(state);
+
         break;
 
         case CONFIG_DOOR_DOWN:
@@ -487,7 +470,6 @@ void loop() {
         case CONFIG_DOOR_TEST_DOWN:
             while(state == CONFIG_DOOR_TEST_DOWN){
                 inputs();
-                Serial.println(servo);
 
                 leds(OFF, F_1HZ);
 
@@ -514,9 +496,7 @@ void loop() {
 
             while(state == CONFIG_DOOR_TEST_UP){
                 inputs();
-                Serial.println(servo);
                 
-
                 if(t_servo_crono == 0) t_servo_crono = millis();
 
                 if(millis() - t_servo_crono < t_servo){
@@ -526,6 +506,7 @@ void loop() {
                 else {
                     servo = PARO;
                     leds(OFF, OFF);
+                    abierto = true;
                 }
 
                 if(state_p_1 && !state_p_1_last) state = CONFIG_DOOR_OK;
@@ -673,6 +654,8 @@ void loop() {
 
         case OPERATION_PUERTA:
 
+            Serial.println("Puerta");
+            
             bool var_aux_abrir = false;
             bool var_aux_cerrar = false;
 
