@@ -1,16 +1,9 @@
 # eGallinero
-El proyecto eGallinero es un sistema de apertura y cierre automático de la puerta de un gallinero al que se le puedan añadir periféricos. Además tiene conexión WiFi, por lo que se trata de un proyecto de IoT. Vamos subiendo los avances que vamos realizando.
+El proyecto eGallinero es un sistema de modular, diseñado para facilitar las tareas que conllevan los cuidados a los animales. En nuestro caso lo hemos adaptado a las gallinas para alinearlo con nuestro objeto social "conectar mundo rural y urbano". Si quieres adaptarlo a otro animal estaremos encantados de recibir tu pull-request.
 
-Estos son nuestros canales de comunicación:
+¡Reserva el tuyo!
 
-[**Web**](https://www.voluta.coop/)  
-
-[**Instagram**](https://www.instagram.com/voluta.coop/)  
-
-[**LinkedIn**](https://www.linkedin.com/company/voluta-coop/)  
-
-[**Facebook**](https://www.facebook.com/Volutacoop-111133700786503/)  
+[**RESERVA**](https://www.voluta.coop/#contacto)  
 
 [**Canal de Telegram**](https://t.me/eGallinero)  
 
-[**Contacto**](mailto:info@voluta.coop)
