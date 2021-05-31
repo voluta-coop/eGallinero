@@ -3,7 +3,7 @@ El eGallinero es un sistema modular, diseñado para facilitar las tareas que con
 
 ¡Reserva el tuyo!
 
-[**RESERVA**](https://www.voluta.coop/#contacto)  
+[**RESERVA**](https://www.voluta.coop/taller-iot-competencias-digitales/)  
 
 [**Canal de Telegram**](https://t.me/eGallinero)  
 
