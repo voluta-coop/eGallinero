@@ -10,16 +10,16 @@
 
 /************** CONFIGURACIÓN **************/
 
-#define WIFI_AP_NAME "NOMBRE_RED_WIFI"
-#define WIFI_PASSWORD "CONTRASEÑA_RED_WIFI"
+#define WIFI_AP_NAME "XXXXXXXXXXXXX"
+#define WIFI_PASSWORD "XXXXXXXXXXXXX"
 #define DIST_MAX_AGUA 50
 #define DIST_MIN_AGUA 6
 #define DIST_MAX_PIENSO 50
 #define DIST_MIN_PIENSO 6
-#define BOT_TOKEN "1734935708:AAE8JzUMjqdGA6_K_cLmFAsl9Mfd5kmDR3I"
-#define CHAT_ID "XXXXXXXXX"
-#define NIVEL_ALERTA_PIENSO 10
-#define NIVEL_ALERTA_AGUA 10
+#define BOT_TOKEN "1636775403:AAGoQ2pkl86_qy56ljtPRMM3JI5PhojrZZE"
+#define CHAT_ID "XXXXXXXXXXX"
+#define NIVEL_ALERTA_PIENSO 60
+#define NIVEL_ALERTA_AGUA 60
 
 /*·············· HORARIOS ···················*/                   
 #define HORA_APERTURA_ENERO         8
@@ -103,19 +103,19 @@
 #define MENSAJE_AGUA "Queda poca agua."
 
 //Estados de configuración
-#define CONFIG_STBY 0
-#define CONFIG_DOOR_DOWN 1
-#define CONFIG_DOOR_UP 2
-#define CONFIG_DOOR_TEST_DOWN 3
-#define CONFIG_DOOR_TEST_UP 4
-#define CONFIG_DOOR_OK 5
+
+#define CONFIG_DOOR_DOWN 0
+#define CONFIG_DOOR_UP 1
+#define CONFIG_DOOR_TEST_DOWN 2
+#define CONFIG_DOOR_TEST_UP 3
+#define CONFIG_DOOR_OK 4
 
 // Estados de funcionamiento
-#define OPERATION_WIFI 6
-#define OPERATION_HORA 7
-#define OPERATION_TELEGRAM 8
-#define OPERATION_PUERTA 9
-#define OPERATION_SENSORES 10
+#define OPERATION_WIFI 5
+#define OPERATION_HORA 6
+#define OPERATION_TELEGRAM 7
+#define OPERATION_PUERTA 8
+#define OPERATION_SENSORES 9
 
 //Constantes Servo
 #define PARO 90
@@ -141,7 +141,7 @@ UniversalTelegramBot bot(BOT_TOKEN, secured_client);
 
 unsigned long bot_lasttime; // last time messages' scan has been done
 
-int state = CONFIG_STBY;
+int state = 0;
 int contador_pienso = 0;
 int contador_agua = 0;
 
@@ -278,9 +278,11 @@ void handleNewMessages(int numNewMessages)
 
 
 void outputs(){
+
     digitalWrite(PIN_LED_1, state_led_1);
     digitalWrite(PIN_LED_2, state_led_2);
-    puerta.write(servo);
+    if(state != OPERATION_HORA && state != OPERATION_WIFI) puerta.write(servo);
+
 }
 
 void leds(int freq_1, int freq_2){ // Esta función enciende el led que se indica y a la frecuencia que se le indica en Hz
@@ -302,8 +304,6 @@ void leds(int freq_1, int freq_2){ // Esta función enciende el led que se indic
     }
     else if(freq_2 == OFF) state_led_2 = LOW;
     else if(freq_2 == ON) state_led_2 = HIGH;
-
-    outputs();
 }
 
 void niveles(){
@@ -322,7 +322,7 @@ void niveles(){
             lec_agua += agua.ping_cm();
             delay(80);
         }
-
+        delay(3000);
         for(int i = 0; i < N_LEC; i++){   
             lec_pienso += pienso.ping_cm();
             delay(80);
@@ -333,6 +333,9 @@ void niveles(){
 
         nivel_agua = map(media_agua,DIST_MIN_AGUA,DIST_MAX_AGUA,100,0);
         nivel_pienso = map(media_pienso,DIST_MIN_PIENSO,DIST_MAX_PIENSO,100,0);
+
+        Serial.println(nivel_agua);
+        Serial.println(nivel_pienso);
 
         if((media_pienso =! 0) && (media_agua != 0)) niveles_ok = true;
         else niveles_ok = false;
@@ -352,38 +355,52 @@ void sensores(){
 }
 
 void telegram(){
-    
-    if (millis() - bot_lasttime > BOT_MTBS){
-    int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
 
-    while (numNewMessages){
-      Serial.println("got response");
-      handleNewMessages(numNewMessages);
-      numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+    previousMillis_2 = millis();
+
+    while(millis() - previousMillis_2 < 5 * MIN_TO_MS){
+        if (millis() - bot_lasttime > BOT_MTBS){
+            int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+        
+            while (numNewMessages){
+                Serial.println("got response");
+                handleNewMessages(numNewMessages);
+                numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+            }
+
+            bot_lasttime = millis();
+        } 
+
+        if(puerta_telegram == true){
+            state = OPERATION_PUERTA;
+            break;
+        }
     }
-
-    bot_lasttime = millis();
-  }
 
     if(abrir == true && puerta_telegram == false) bot.sendMessage(CHAT_ID, MENSAJE_DIARIO, "");
     else if(abrir == true && puerta_telegram == true) bot.sendMessage(CHAT_ID, "Abriendo...", "");
     else if(cerrar == true && puerta_telegram == true) bot.sendMessage(CHAT_ID, "Cerrando...", "");
 
-    if(nivel_pienso <= NIVEL_ALERTA_PIENSO) contador_pienso++;
+    if(nivel_pienso <= NIVEL_ALERTA_PIENSO) contador_pienso++; 
     if(nivel_agua <= NIVEL_ALERTA_AGUA) contador_agua++;
 
     if(t_servo == 0 && aviso_error_config_puerta == false) {
         aviso_error_config_puerta = true;
         bot.sendMessage(CHAT_ID, "La puerta no está configurada, consulta el manual de configuración: https://github.com/voluta-coop/eGallinero", "");
     }
-    if(contador_pienso >= 4) bot.sendMessage(CHAT_ID, MENSAJE_PIENSO, "");
-    if(contador_agua >= 4) bot.sendMessage(CHAT_ID, MENSAJE_AGUA, "");
+    
+    if(contador_pienso >= 12) bot.sendMessage(CHAT_ID, MENSAJE_PIENSO, "");
+    
+    if(contador_agua >= 12) bot.sendMessage(CHAT_ID, MENSAJE_AGUA, "");
+    
+    if(contador_agua >= 12) contador_agua = 0;
+    if(contador_pienso >= 12) contador_pienso = 0;
 
-    if(contador_agua >= 4) contador_agua = 0;
-    if(contador_pienso >= 4) contador_pienso = 0;
+    Serial.print("contador agua: ");
+    Serial.println(contador_agua);
 }
 
-void setup() {
+void setup(){
     
     Serial.begin(9600);
 
@@ -400,41 +417,30 @@ void setup() {
 	ESP32PWM::allocateTimer(2);
 	ESP32PWM::allocateTimer(3);
 	puerta.setPeriodHertz(50);    // standard 50 hz servo
-	puerta.attach(PIN_SERVO, 1000, 2000);
+    
+	puerta.attach(PIN_SERVO, 500, 2400);
+
+    outputs();
 }
 
 void loop() {
     switch(state){
-        case CONFIG_STBY:
-            while(state == CONFIG_STBY){
-                Serial.println("STBY");
-                inputs();
-
-                leds(F_1HZ, OFF);
-
-                t_servo = 0;
-                t_servo_crono = 0;
-
-                if (state_p_1 && !state_p_1_last){
-                    state = CONFIG_DOOR_DOWN;
-                    t_p_2 = millis();
-                }
-            }
-
-        break;
-
+        
         case CONFIG_DOOR_DOWN:
 
+            Serial.println("DOWN");
+
             while(state == CONFIG_DOOR_DOWN){
+
                 inputs();
-                Serial.println("DOWN");
 
                 if((state_p_2 && state_p_2_last)){
-                    leds(ON, F_2HZ);
+                    leds(ON, F_5HZ);
                      servo = BAJAR;
                 }
+
                 else{
-                    leds(OFF, F_2HZ);
+                    leds(OFF, F_5HZ);
                      servo = PARO;
                 }
 
@@ -450,11 +456,11 @@ void loop() {
                 Serial.println("UP");
 
                 if((state_p_2 && state_p_2_last)){
-                    leds(F_2HZ,ON);
+                    leds(F_5HZ,ON);
                      servo = SUBIR;
                 }
                 else{
-                    leds(F_2HZ, OFF);
+                    leds(F_5HZ, OFF);
                      servo = PARO;
                 }
 
@@ -468,48 +474,50 @@ void loop() {
         break;
 
         case CONFIG_DOOR_TEST_DOWN:
+
+            Serial.println("Test Down");
+
+            t_servo_crono = millis();
+
             while(state == CONFIG_DOOR_TEST_DOWN){
+                
                 inputs();
 
-                leds(OFF, F_1HZ);
-
-                if(t_servo_crono == 0) t_servo_crono = millis();
-
                 if(millis() - t_servo_crono < t_servo){
-                    leds(OFF, F_1HZ);
+                    leds(OFF, F_2HZ);
                     servo = BAJAR;
                     }
                 else {
                     servo = PARO;
-                    leds(OFF, OFF);
+                    leds(OFF, ON);
+                    if(state_p_1 && !state_p_1_last) state = CONFIG_DOOR_TEST_UP;
+                    if(state_p_2 && !state_p_2_last) state = CONFIG_DOOR_DOWN;  
                 }
 
-                if(state_p_1 && !state_p_1_last) state = CONFIG_DOOR_TEST_UP;
-                if(state_p_2 && !state_p_2_last) state = CONFIG_STBY;
                 outputs();
             }
         break;
 
         case CONFIG_DOOR_TEST_UP:
 
-            t_servo_crono = 0;
+            Serial.println("Test Up");
+
+            t_servo_crono = millis();
 
             while(state == CONFIG_DOOR_TEST_UP){
+
                 inputs();
-                
-                if(t_servo_crono == 0) t_servo_crono = millis();
 
                 if(millis() - t_servo_crono < t_servo){
-                    leds(F_1HZ, OFF);
+                    leds(F_2HZ, OFF);
                     servo = SUBIR;
                     }
                 else {
                     servo = PARO;
-                    leds(OFF, OFF);
+                    leds(ON, OFF);
                     abierto = true;
+                    if(state_p_1 && !state_p_1_last) state = CONFIG_DOOR_OK;
                 }
-
-                if(state_p_1 && !state_p_1_last) state = CONFIG_DOOR_OK;
 
                 outputs();
             }
@@ -517,19 +525,17 @@ void loop() {
 
         case CONFIG_DOOR_OK:
 
-            t_servo_crono = 0;
+            Serial.println("Ok?");
+            delay(500);
 
             while(state == CONFIG_DOOR_OK){
+
                 inputs();
                 
-                leds(F_1HZ, F_1HZ);
-
-                if(t_servo_crono == 0) t_servo_crono = millis();
-
-                if(millis() - t_servo_crono < t_servo) servo = SUBIR;
-                else servo = PARO;
+                leds(F_1HZ, F_1HZ);         
 
                 if(state_p_1 && !state_p_1_last) state = OPERATION_WIFI;
+                else if(state_p_2 && !state_p_2_last) state = CONFIG_DOOR_TEST_DOWN;
 
                 outputs();
             }
@@ -538,20 +544,17 @@ void loop() {
         case OPERATION_WIFI:
 
             Serial.println("WiFi");
-            inputs();
+
             WiFi.begin(WIFI_AP_NAME, WIFI_PASSWORD);
 
             secured_client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
             
             while (WiFi.status() != WL_CONNECTED){
                 delay(100);
-                leds(F_2HZ, OFF);
             }
 
-            leds(ON, OFF);
-
             if(WiFi.status() == WL_CONNECTED) state = OPERATION_HORA;
-            outputs();
+            
         break;
 
         case OPERATION_HORA:
@@ -636,26 +639,17 @@ void loop() {
         case OPERATION_TELEGRAM:
 
         Serial.println("Telegram");
-        previousMillis_2 = millis();
 
-        while(millis() < previousMillis_2 + 5 * MIN_TO_MS){
+        telegram();
 
-            telegram();
-
-            if(puerta_telegram == true){
-                state = OPERATION_PUERTA;
-                break;
-            }
-        }
-
-        if(puerta_telegram == false) state = OPERATION_WIFI;
+        if(puerta_telegram == false) state = OPERATION_HORA;
 
         break;
 
         case OPERATION_PUERTA:
 
             Serial.println("Puerta");
-            
+
             bool var_aux_abrir = false;
             bool var_aux_cerrar = false;
 
@@ -683,6 +677,7 @@ void loop() {
                         cerrar = false;
                         abierto = true;
                         cerrado = false;
+                        state = OPERATION_SENSORES;
                     }
                 }
 
@@ -701,15 +696,15 @@ void loop() {
                         cerrar = false;
                         abierto = false;
                         cerrado = true;
+                        state = OPERATION_SENSORES;
                     }
                 }
 
 
-                if (abierto == true || cerrado == true) state = OPERATION_SENSORES;
+                
 
                 outputs();
             }
         break;
     }
-    
 }
