@@ -10,16 +10,16 @@
 
 /************** CONFIGURACIÓN **************/
 
-#define WIFI_AP_NAME "XXXXXXXXXXXXX"
-#define WIFI_PASSWORD "XXXXXXXXXXXXX"
+#define WIFI_AP_NAME "XXXXXXXXXXXXXXXx"
+#define WIFI_PASSWORD "XXXXXXXXXXXXXX"
 #define DIST_MAX_AGUA 50
 #define DIST_MIN_AGUA 6
 #define DIST_MAX_PIENSO 50
 #define DIST_MIN_PIENSO 6
-#define BOT_TOKEN "1636775403:AAGoQ2pkl86_qy56ljtPRMM3JI5PhojrZZE"
-#define CHAT_ID "XXXXXXXXXXX"
-#define NIVEL_ALERTA_PIENSO 60
-#define NIVEL_ALERTA_AGUA 60
+#define BOT_TOKEN "XXXXXXXXX:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+#define CHAT_ID "XXXXXXXXXX"
+#define NIVEL_ALERTA_PIENSO 20
+#define NIVEL_ALERTA_AGUA 20
 
 /*·············· HORARIOS ···················*/                   
 #define HORA_APERTURA_ENERO         8
@@ -50,7 +50,7 @@
 #define HORA_APERTURA_JUNIO         8
 #define MINUTO_APERTURA_JUNIO       30
 #define HORA_CIERRE_JUNIO           22
-#define MINUTO_CIERRE_JUNIO         45
+#define MINUTO_CIERRE_JUNIO         0
 
 #define HORA_APERTURA_JULIO         8
 #define MINUTO_APERTURA_JULIO       30
@@ -188,7 +188,7 @@ NewPing pienso(PIN_PIENSO, PIN_PIENSO, DIST_MAX_PIENSO);
 Servo puerta;
 
 // Tiempo
-static const char ntpServerName[] = "1.es.pool.ntp.org";
+static const char ntpServerName[] = "3.es.pool.ntp.org";
 const int timeZone = 1;     // Central European Time
 
 WiFiUDP Udp;
@@ -358,24 +358,31 @@ void telegram(){
 
     previousMillis_2 = millis();
 
-    while(millis() - previousMillis_2 < 5 * MIN_TO_MS){
-        if (millis() - bot_lasttime > BOT_MTBS){
-            int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
-        
-            while (numNewMessages){
-                Serial.println("got response");
-                handleNewMessages(numNewMessages);
-                numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+        while (millis() - previousMillis_2 < 1 * MIN_TO_MS){
+            
+            if (millis() - bot_lasttime > BOT_MTBS){
+                int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+            
+                while (numNewMessages){
+                    Serial.println("got response");
+                    handleNewMessages(numNewMessages);
+                    numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+                }
+
+                bot_lasttime = millis();
             }
 
-            bot_lasttime = millis();
-        } 
+            if(puerta_telegram == true){
+            state = OPERATION_PUERTA;
+        }
+
+            if(abrir == true || cerrar == true) break;
+        }
 
         if(puerta_telegram == true){
             state = OPERATION_PUERTA;
-            break;
         }
-    }
+    
 
     if(abrir == true && puerta_telegram == false) bot.sendMessage(CHAT_ID, MENSAJE_DIARIO, "");
     else if(abrir == true && puerta_telegram == true) bot.sendMessage(CHAT_ID, "Abriendo...", "");
@@ -389,12 +396,12 @@ void telegram(){
         bot.sendMessage(CHAT_ID, "La puerta no está configurada, consulta el manual de configuración: https://github.com/voluta-coop/eGallinero", "");
     }
     
-    if(contador_pienso >= 12) bot.sendMessage(CHAT_ID, MENSAJE_PIENSO, "");
+    if(contador_pienso >= 30) bot.sendMessage(CHAT_ID, MENSAJE_PIENSO, "");
     
-    if(contador_agua >= 12) bot.sendMessage(CHAT_ID, MENSAJE_AGUA, "");
+    if(contador_agua >= 30) bot.sendMessage(CHAT_ID, MENSAJE_AGUA, "");
     
-    if(contador_agua >= 12) contador_agua = 0;
-    if(contador_pienso >= 12) contador_pienso = 0;
+    if(contador_agua >= 30) contador_agua = 0;
+    if(contador_pienso >= 30) contador_pienso = 0;
 
     Serial.print("contador agua: ");
     Serial.println(contador_agua);
@@ -477,13 +484,16 @@ void loop() {
 
             Serial.println("Test Down");
 
+            Serial.println(t_servo);
+            Serial.println(t_servo/1.3);
+
             t_servo_crono = millis();
 
             while(state == CONFIG_DOOR_TEST_DOWN){
                 
                 inputs();
 
-                if(millis() - t_servo_crono < t_servo){
+                if(millis() - t_servo_crono < t_servo / 1.3){
                     leds(OFF, F_2HZ);
                     servo = BAJAR;
                     }
@@ -545,6 +555,9 @@ void loop() {
 
             Serial.println("WiFi");
 
+            leds(OFF, OFF);
+            outputs();
+
             WiFi.begin(WIFI_AP_NAME, WIFI_PASSWORD);
 
             secured_client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
@@ -594,36 +607,62 @@ void loop() {
                 {HORA_CIERRE_NOVIEMBRE, MINUTO_CIERRE_NOVIEMBRE},
                 {HORA_CIERRE_DICIEMBRE, MINUTO_CIERRE_DICIEMBRE}};
 
-                
+                int hora = hour() + 1;
+                if (hora >= 24) hora = 0;
 
-                int hora = hour();
                 int minuto = minute();
                 int dia = day();
                 int mes = month();
-
+                int minuto_diario = hora * 60 + minuto;
+                int minuto_apertura = horario_apertura[mes-1][0] * 60 + horario_apertura[mes-1][1];
+                int minuto_cierre = horario_cierre[mes-1][0] * 60 + horario_cierre[mes-1][1];
                 inputs();
                 
-                leds(OFF, OFF);
+                Serial.println(dia);
+                Serial.println(mes);
+                Serial.println(minuto_diario);
+                Serial.println(minuto_apertura);
+                Serial.println(minuto_cierre);
 
-                if(hora * 60 + minuto >= horario_apertura[mes][0] * 60 + horario_apertura[mes][1] && hora < horario_cierre[mes][0]) {
+                if(cerrado == true && ( minuto_diario >= minuto_apertura && minuto_diario < minuto_cierre)) {
                     abrir   = true;
                     cerrar  = false;
+                    Serial.println("Es hora de abrir.");
                 }
-                else if(hora * 60 + minuto >= horario_cierre[mes][0] * 60 + horario_cierre[mes][1] && hora * 60 + minuto <  24 * 60 - 1){
+                else if(abierto == true && ( minuto_diario < minuto_apertura || minuto_diario >= minuto_cierre)){
                      cerrar = true;
                      abrir  = false;
+                    Serial.println("Es hora de cerrar.");
                 }
                 else{
                     abrir   = false;
                     cerrar  = false;
+                    if(abierto == true) Serial.println("Ya está abierto");
+                    else if(cerrado == true) Serial.println("Ya está cerrado");
                 }
-               
+                
                 outputs();
 
                 if(WiFi.status() != WL_CONNECTED) state = OPERATION_WIFI;
-                else if((hora != 0 && minuto != 0 && dia != 0 && mes != 0) && (abrir == true || cerrar == true) ) state = OPERATION_PUERTA;
-                else state = OPERATION_SENSORES;
+                else if((hora != 0 && minuto != 0 && dia != 0 && mes != 0) && (abrir == true || cerrar == true) ) {
+                    state = OPERATION_PUERTA;
+                    Serial.println("Hora: ");
+                    Serial.print(hora);Serial.print(":");Serial.println(minuto);
+                }
+
+                else {
+                    Serial.println("Hora: ");
+                    Serial.print(hora);Serial.print(":");Serial.println(minuto);
+                    state = OPERATION_SENSORES;}
+
+                if(hora * 60 + minuto <= 30) puerta_telegram = false;
             }
+
+        
+        
+        if(abierto == true) abrir = false;
+        if(cerrado == true) cerrar = false;
+
         break;
 
         case OPERATION_SENSORES:
@@ -640,27 +679,27 @@ void loop() {
 
         Serial.println("Telegram");
 
-        telegram();
+            telegram();
 
-        if(puerta_telegram == false) state = OPERATION_HORA;
+        state = OPERATION_HORA;
 
         break;
 
         case OPERATION_PUERTA:
 
             Serial.println("Puerta");
+            Serial.print("abrir ");Serial.println(abrir);
+            Serial.print("cerrar: ");Serial.println(cerrar);
+            Serial.print("abierto: ");Serial.println(abierto);
+            Serial.print("cerrado: ");Serial.println(cerrado);
+            Serial.print("puerta_telegram: ");Serial.println(puerta_telegram);
 
             bool var_aux_abrir = false;
-            bool var_aux_cerrar = false;
-
-            if (puerta_telegram == true) puerta_telegram = false;
-
-            if(abierto == true && cerrar == true) abierto = false;
-            if(cerrado == true && abrir == true) cerrado = false;
+            bool var_aux_cerrar = false; 
 
             while(state == OPERATION_PUERTA){
                 
-                if(abrir == true){
+                if(abrir == true && cerrado == true){
                     
                     if(var_aux_abrir == false) {
                         t_servo_crono = millis();
@@ -668,43 +707,48 @@ void loop() {
                     }
 
 
-                    if(millis() - t_servo_crono < t_servo){
-                        servo = SUBIR;
-                    }
+                    if(millis() - t_servo_crono < t_servo && var_aux_abrir == true) servo = SUBIR;
+
                     else if(millis() - t_servo_crono >= t_servo)  {
                         servo = PARO;
                         abrir = false;
                         cerrar = false;
                         abierto = true;
                         cerrado = false;
-                        state = OPERATION_SENSORES;
                     }
                 }
 
-                else if(cerrar == true){
-
+                else if(cerrar == true && abierto == true){
+                    
+                    Serial.println("Está abierta y hay que cerrar");
                     if(var_aux_cerrar == false) {
                         t_servo_crono = millis();
                         var_aux_cerrar = true;
+                        Serial.println(t_servo_crono);
                     }
 
-                    if(millis() - t_servo_crono < t_servo) servo = BAJAR;
-
-                    else if(millis() - t_servo_crono >= t_servo)  {
+                    if(millis() - t_servo_crono < t_servo / 1.3 && var_aux_cerrar == true) {
+                        servo = BAJAR;
+                        Serial.println("Empieza a bajar");
+                    }
+                    else if(millis() - t_servo_crono >= t_servo / 1.3)  {
                         servo = PARO;
                         abrir = false;
                         cerrar = false;
                         abierto = false;
                         cerrado = true;
-                        state = OPERATION_SENSORES;
+                        Serial.println("El servo para, está cerrada");
                     }
                 }
 
-
+                if(abrir == false && cerrar == false) state = OPERATION_SENSORES;
                 
-
                 outputs();
             }
+            
+            if(abierto == true && cerrar == true) abierto = false;
+            if(cerrado == true && abrir == true) cerrado = false;
+        
         break;
     }
 }
