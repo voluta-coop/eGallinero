@@ -7,17 +7,17 @@
 #include <ESP32Servo.h>
 #include <UniversalTelegramBot.h>
 
-
 /************** CONFIGURACIÓN **************/
 
-#define WIFI_AP_NAME "XXXXXXXXXXXXXXXx"
-#define WIFI_PASSWORD "XXXXXXXXXXXXXX"
-#define DIST_MAX_AGUA 50
-#define DIST_MIN_AGUA 6
-#define DIST_MAX_PIENSO 50
-#define DIST_MIN_PIENSO 6
-#define BOT_TOKEN "XXXXXXXXX:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-#define CHAT_ID "XXXXXXXXXX"
+#define WIFI_AP_NAME "XXXXXXX"
+#define WIFI_PASSWORD "XXXXX"
+#define DIST_MAX_AGUA 31
+#define DIST_MIN_AGUA 10
+#define DIST_MAX_PIENSO 31
+#define DIST_MIN_PIENSO 10
+#define BOT_TOKEN "XXXXXXXXXX:XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+#define CHAT_ID "941876134"
+#define CHAT_ID_CLIENTE "XXXXXXXXXXX"
 #define NIVEL_ALERTA_PIENSO 20
 #define NIVEL_ALERTA_AGUA 20
 
@@ -49,13 +49,13 @@
 
 #define HORA_APERTURA_JUNIO         8
 #define MINUTO_APERTURA_JUNIO       30
-#define HORA_CIERRE_JUNIO           22
-#define MINUTO_CIERRE_JUNIO         0
+#define HORA_CIERRE_JUNIO           21
+#define MINUTO_CIERRE_JUNIO         30
 
 #define HORA_APERTURA_JULIO         8
-#define MINUTO_APERTURA_JULIO       30
-#define HORA_CIERRE_JULIO           22
-#define MINUTO_CIERRE_JULIO         15
+#define MINUTO_APERTURA_JULIO       0
+#define HORA_CIERRE_JULIO           21
+#define MINUTO_CIERRE_JULIO         30
 
 #define HORA_APERTURA_AGOSTO        8
 #define MINUTO_APERTURA_AGOSTO      30
@@ -82,7 +82,13 @@
 #define HORA_CIERRE_DICIEMBRE       18
 #define MINUTO_CIERRE_DICIEMBRE     30
 
+
 /****************** FIN DE LA CONFIGURACIÓN ******************/
+
+
+
+
+
 
 
 // Pines
@@ -90,32 +96,32 @@
 #define PIN_LED_2 15
 #define PIN_PULSADOR_1 12
 #define PIN_PULSADOR_2 13
-#define PIN_AGUA 32
-#define PIN_PIENSO 33
+#define PIN_AGUA 33
+#define PIN_PIENSO 32
 #define PIN_SERVO 14
 
 // Lectura sensores
 #define N_LEC 20 // Número de lecturas para hacer la media de los niveles
 
 // Mensajes Telegram
-#define MENSAJE_DIARIO ""
+
 #define MENSAJE_PIENSO "Queda poco pienso."
 #define MENSAJE_AGUA "Queda poca agua."
 
 //Estados de configuración
-
-#define CONFIG_DOOR_DOWN 0
-#define CONFIG_DOOR_UP 1
-#define CONFIG_DOOR_TEST_DOWN 2
-#define CONFIG_DOOR_TEST_UP 3
-#define CONFIG_DOOR_OK 4
+#define CONFIG_SET_UP 0
+#define CONFIG_DOOR_DOWN 1
+#define CONFIG_DOOR_UP 2
+#define CONFIG_DOOR_TEST_DOWN 3
+#define CONFIG_DOOR_TEST_UP 4
+#define CONFIG_DOOR_OK 5
 
 // Estados de funcionamiento
-#define OPERATION_WIFI 5
-#define OPERATION_HORA 6
-#define OPERATION_TELEGRAM 7
-#define OPERATION_PUERTA 8
-#define OPERATION_SENSORES 9
+#define OPERATION_WIFI 6
+#define OPERATION_HORA 7
+#define OPERATION_TELEGRAM 8
+#define OPERATION_PUERTA 10
+#define OPERATION_SENSORES 11
 
 //Constantes Servo
 #define PARO 90
@@ -133,9 +139,12 @@
 // Conversiones
 #define MIN_TO_MS 60000
 
+// Variables sensores
+int nivel_agua = 0;
+int nivel_pienso = 0;
+
 // Telegram
 const unsigned long BOT_MTBS = 1000; // mean time between scan messages
-
 WiFiClientSecure secured_client;
 UniversalTelegramBot bot(BOT_TOKEN, secured_client);
 
@@ -144,7 +153,7 @@ unsigned long bot_lasttime; // last time messages' scan has been done
 int state = 0;
 int contador_pienso = 0;
 int contador_agua = 0;
-
+bool aux = 0;
 bool puerta_telegram = false;
 bool aviso_error_config_puerta = false;
 
@@ -173,23 +182,20 @@ unsigned long  previousMillis_1 = 0;
 unsigned long  previousMillis_2 = 0;
 unsigned long  t_p_1 = 0;
 unsigned long  t_p_2 = 0;
-unsigned long  t_servo = 0;
+unsigned long  t_servo_down = 0;
+unsigned long  t_servo_up = 0;
 unsigned long  t_servo_crono = 0;
 
-// Variables sensores
-int nivel_agua = 0;
-int nivel_pienso = 0;
 
-
-NewPing agua(PIN_AGUA, PIN_AGUA, DIST_MAX_AGUA);
-NewPing pienso(PIN_PIENSO, PIN_PIENSO, DIST_MAX_PIENSO);
+NewPing agua(PIN_AGUA, PIN_AGUA, DIST_MAX_AGUA + 10);
+NewPing pienso(PIN_PIENSO, PIN_PIENSO, DIST_MAX_PIENSO + 10);
 
 //Servo
 Servo puerta;
 
 // Tiempo
 static const char ntpServerName[] = "3.es.pool.ntp.org";
-const int timeZone = 1;     // Central European Time
+const int timeZone = 1;     
 
 WiFiUDP Udp;
 unsigned int localPort = 8888;  // local port to listen for UDP packets
@@ -257,18 +263,26 @@ void handleNewMessages(int numNewMessages)
     
     if(text == "Abrir" || text == "abrir") {
 
-        if(abierto == true) bot.sendMessage(CHAT_ID, "La puerta ya está abierta.", "");
+        if(abierto == true){
+            bot.sendMessage(CHAT_ID, "La puerta ya está abierta.", "");
+            bot.sendMessage(CHAT_ID_CLIENTE, "La puerta ya está abierta.", "");
+        } 
         else{
             cerrar = false;
             abrir = true;
+            Serial.println("Abro manualmente");
         }
     }
     else if (text = "Cerrar" || text == "cerrar") {
 
-        if(cerrado == true) bot.sendMessage(CHAT_ID, "La puerta ya está cerrada.", "");
+        if(cerrado == true){
+           bot.sendMessage(CHAT_ID, "La puerta ya está cerrada.", ""); 
+           bot.sendMessage(CHAT_ID_CLIENTE, "La puerta ya está cerrada.", "");
+        } 
         else{
             cerrar = true;
             abrir = false;
+            Serial.println("Cierro manualmente");
         }
     }
 
@@ -316,13 +330,14 @@ void niveles(){
         int lec_pienso = 0;
         int media_agua = 0;
         int media_pienso = 0;
-        
+
 
         for(int i = 0; i < N_LEC; i++){
             lec_agua += agua.ping_cm();
             delay(80);
         }
-        delay(3000);
+
+        delay(2500);
         for(int i = 0; i < N_LEC; i++){   
             lec_pienso += pienso.ping_cm();
             delay(80);
@@ -331,13 +346,27 @@ void niveles(){
         media_agua = lec_agua/N_LEC;
         media_pienso = lec_pienso/N_LEC;
 
-        nivel_agua = map(media_agua,DIST_MIN_AGUA,DIST_MAX_AGUA,100,0);
-        nivel_pienso = map(media_pienso,DIST_MIN_PIENSO,DIST_MAX_PIENSO,100,0);
+        Serial.print("media agua: "); Serial.println(media_agua);
+        Serial.print("media pienso: "); Serial.println(media_pienso);
 
-        Serial.println(nivel_agua);
-        Serial.println(nivel_pienso);
+        if(media_agua != 0 && media_pienso != 0){
 
-        if((media_pienso =! 0) && (media_agua != 0)) niveles_ok = true;
+            nivel_agua = map(media_agua,DIST_MIN_AGUA,DIST_MAX_AGUA,100,0);
+            nivel_pienso = map(media_pienso,DIST_MIN_PIENSO,DIST_MAX_PIENSO,100,0);
+
+            if(nivel_pienso <= 0) nivel_pienso = 0;
+            if(nivel_agua <= 0) nivel_agua = 0;
+
+            if(nivel_agua >= 100) nivel_agua = 100;
+            if(nivel_pienso >= 100) nivel_pienso = 100;
+
+            Serial.println("niveles");
+            Serial.println(nivel_agua);
+            Serial.println(nivel_pienso);
+
+            niveles_ok = true;
+        }
+
         else niveles_ok = false;
     }
 }
@@ -358,7 +387,7 @@ void telegram(){
 
     previousMillis_2 = millis();
 
-        while (millis() - previousMillis_2 < 1 * MIN_TO_MS){
+        while (millis() - previousMillis_2 < 2 * MIN_TO_MS){
             
             if (millis() - bot_lasttime > BOT_MTBS){
                 int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
@@ -372,39 +401,43 @@ void telegram(){
                 bot_lasttime = millis();
             }
 
-            if(puerta_telegram == true){
+            if(puerta_telegram == true && (abrir == true || cerrar == true)){
             state = OPERATION_PUERTA;
+            break;
+            }
         }
+    String niveles_pienso[] = {String(nivel_pienso)};
 
-            if(abrir == true || cerrar == true) break;
-        }
 
-        if(puerta_telegram == true){
-            state = OPERATION_PUERTA;
-        }
-    
-
-    if(abrir == true && puerta_telegram == false) bot.sendMessage(CHAT_ID, MENSAJE_DIARIO, "");
+    if((abrir == true && puerta_telegram == false) || !aux) {
+        aux = 1;
+        bot.sendMessage(CHAT_ID, {"Buenos días Teresa, este es el estado de tu gallinero:\n - Agua: " + String(nivel_agua) + "%\n- Pienso: " + String(nivel_pienso) + "%"}, "");
+        bot.sendMessage(CHAT_ID_CLIENTE,{"Buenos días Teresa, este es el estado de tu gallinero:\n - Agua: " + String(nivel_agua) + "%\n- Pienso: " + String(nivel_pienso) + "%"} , "");
+    }
     else if(abrir == true && puerta_telegram == true) bot.sendMessage(CHAT_ID, "Abriendo...", "");
     else if(cerrar == true && puerta_telegram == true) bot.sendMessage(CHAT_ID, "Cerrando...", "");
 
     if(nivel_pienso <= NIVEL_ALERTA_PIENSO) contador_pienso++; 
     if(nivel_agua <= NIVEL_ALERTA_AGUA) contador_agua++;
 
-    if(t_servo == 0 && aviso_error_config_puerta == false) {
+    if((t_servo_up == 0 || t_servo_down == 0) && aviso_error_config_puerta == false) {
         aviso_error_config_puerta = true;
         bot.sendMessage(CHAT_ID, "La puerta no está configurada, consulta el manual de configuración: https://github.com/voluta-coop/eGallinero", "");
+        bot.sendMessage(CHAT_ID_CLIENTE, "La puerta no está configurada, consulta el manual de configuración: https://github.com/voluta-coop/eGallinero", "");
     }
     
-    if(contador_pienso >= 30) bot.sendMessage(CHAT_ID, MENSAJE_PIENSO, "");
+    if(contador_pienso >= 30) {
+        bot.sendMessage(CHAT_ID, MENSAJE_PIENSO, "");
+        bot.sendMessage(CHAT_ID_CLIENTE, MENSAJE_PIENSO, "");
+    }
     
-    if(contador_agua >= 30) bot.sendMessage(CHAT_ID, MENSAJE_AGUA, "");
+    if(contador_agua >= 30) {
+        bot.sendMessage(CHAT_ID_CLIENTE, MENSAJE_AGUA, "");
+        bot.sendMessage(CHAT_ID, MENSAJE_AGUA, "");
+    }
     
     if(contador_agua >= 30) contador_agua = 0;
     if(contador_pienso >= 30) contador_pienso = 0;
-
-    Serial.print("contador agua: ");
-    Serial.println(contador_agua);
 }
 
 void setup(){
@@ -433,26 +466,50 @@ void setup(){
 void loop() {
     switch(state){
         
-        case CONFIG_DOOR_DOWN:
+        case CONFIG_SET_UP:
 
-            Serial.println("DOWN");
+            Serial.println("SET UP");
 
-            while(state == CONFIG_DOOR_DOWN){
+            while(state == CONFIG_SET_UP){
 
                 inputs();
 
                 if((state_p_2 && state_p_2_last)){
-                    leds(ON, F_5HZ);
-                     servo = BAJAR;
+                    leds(F_5HZ, OFF);
+                     servo = SUBIR;
                 }
 
+                else{
+                    leds(ON, OFF);
+                     servo = PARO;
+                }
+
+                if(state_p_1 && !state_p_1_last) state = CONFIG_DOOR_DOWN;
+
+                outputs();
+            }
+        break;
+
+        case CONFIG_DOOR_DOWN:
+
+            while(state == CONFIG_DOOR_DOWN){
+                inputs();
+                Serial.println("DOWN");
+
+                if((state_p_2 && state_p_2_last)){
+                    leds(ON,F_5HZ);
+                     servo = BAJAR;
+                }
                 else{
                     leds(OFF, F_5HZ);
                      servo = PARO;
                 }
 
-                if(state_p_1 && !state_p_1_last) state = CONFIG_DOOR_UP;
+                if(state_p_2 && !state_p_2_last) t_p_2 = millis();
+                if((!state_p_2 && state_p_2_last)) t_servo_down += millis() - t_p_2;
 
+                if(state_p_1 && !state_p_1_last) state = CONFIG_DOOR_UP;
+                
                 outputs();
             }
         break;
@@ -472,7 +529,7 @@ void loop() {
                 }
 
                 if(state_p_2 && !state_p_2_last) t_p_2 = millis();
-                if((!state_p_2 && state_p_2_last)) t_servo += millis() - t_p_2;
+                if((!state_p_2 && state_p_2_last)) t_servo_up += millis() - t_p_2;
 
                 if(state_p_1 && !state_p_1_last) state = CONFIG_DOOR_TEST_DOWN;
                 
@@ -484,8 +541,6 @@ void loop() {
 
             Serial.println("Test Down");
 
-            Serial.println(t_servo);
-            Serial.println(t_servo/1.3);
 
             t_servo_crono = millis();
 
@@ -493,7 +548,7 @@ void loop() {
                 
                 inputs();
 
-                if(millis() - t_servo_crono < t_servo / 1.3){
+                if(millis() - t_servo_crono < t_servo_down){
                     leds(OFF, F_2HZ);
                     servo = BAJAR;
                     }
@@ -501,7 +556,7 @@ void loop() {
                     servo = PARO;
                     leds(OFF, ON);
                     if(state_p_1 && !state_p_1_last) state = CONFIG_DOOR_TEST_UP;
-                    if(state_p_2 && !state_p_2_last) state = CONFIG_DOOR_DOWN;  
+                    if(state_p_2 && !state_p_2_last) state = CONFIG_SET_UP;  
                 }
 
                 outputs();
@@ -518,7 +573,7 @@ void loop() {
 
                 inputs();
 
-                if(millis() - t_servo_crono < t_servo){
+                if(millis() - t_servo_crono < t_servo_up){
                     leds(F_2HZ, OFF);
                     servo = SUBIR;
                     }
@@ -555,7 +610,7 @@ void loop() {
 
             Serial.println("WiFi");
 
-            leds(OFF, OFF);
+            leds(ON, OFF);
             outputs();
 
             WiFi.begin(WIFI_AP_NAME, WIFI_PASSWORD);
@@ -608,7 +663,7 @@ void loop() {
                 {HORA_CIERRE_DICIEMBRE, MINUTO_CIERRE_DICIEMBRE}};
 
                 int hora = hour() + 1;
-                if (hora >= 24) hora = 0;
+                if (hora >= 24 || day() == 0) hora = 0;
 
                 int minuto = minute();
                 int dia = day();
@@ -629,6 +684,7 @@ void loop() {
                     cerrar  = false;
                     Serial.println("Es hora de abrir.");
                 }
+
                 else if(abierto == true && ( minuto_diario < minuto_apertura || minuto_diario >= minuto_cierre)){
                      cerrar = true;
                      abrir  = false;
@@ -644,7 +700,8 @@ void loop() {
                 outputs();
 
                 if(WiFi.status() != WL_CONNECTED) state = OPERATION_WIFI;
-                else if((hora != 0 && minuto != 0 && dia != 0 && mes != 0) && (abrir == true || cerrar == true) ) {
+
+                else if((hour() != 0 && dia != 0 && mes != 0) && (abrir == true || cerrar == true) ) {
                     state = OPERATION_PUERTA;
                     Serial.println("Hora: ");
                     Serial.print(hora);Serial.print(":");Serial.println(minuto);
@@ -653,13 +710,14 @@ void loop() {
                 else {
                     Serial.println("Hora: ");
                     Serial.print(hora);Serial.print(":");Serial.println(minuto);
-                    state = OPERATION_SENSORES;}
+                    state = OPERATION_SENSORES;
+                }
 
                 if(hora * 60 + minuto <= 30) puerta_telegram = false;
             }
 
-        
-        
+
+
         if(abierto == true) abrir = false;
         if(cerrado == true) cerrar = false;
 
@@ -681,13 +739,14 @@ void loop() {
 
             telegram();
 
-        state = OPERATION_HORA;
+        if(state != OPERATION_PUERTA) state = OPERATION_HORA;
 
         break;
 
         case OPERATION_PUERTA:
 
             Serial.println("Puerta");
+            Serial.println();
             Serial.print("abrir ");Serial.println(abrir);
             Serial.print("cerrar: ");Serial.println(cerrar);
             Serial.print("abierto: ");Serial.println(abierto);
@@ -698,23 +757,27 @@ void loop() {
             bool var_aux_cerrar = false; 
 
             while(state == OPERATION_PUERTA){
-                
+
                 if(abrir == true && cerrado == true){
-                    
+
                     if(var_aux_abrir == false) {
                         t_servo_crono = millis();
                         var_aux_abrir = true;
+                        Serial.println("T_servo_crono");
                     }
 
 
-                    if(millis() - t_servo_crono < t_servo && var_aux_abrir == true) servo = SUBIR;
-
-                    else if(millis() - t_servo_crono >= t_servo)  {
+                    if(millis() - t_servo_crono < t_servo_up && var_aux_abrir == true){
+                         servo = SUBIR;
+                        Serial.println("Empiezo a abrir manualmente");
+                    }
+                    else if(millis() - t_servo_crono >= t_servo_up)  {
                         servo = PARO;
                         abrir = false;
                         cerrar = false;
                         abierto = true;
                         cerrado = false;
+                        Serial.println("He acabado de abrir");
                     }
                 }
 
@@ -727,11 +790,11 @@ void loop() {
                         Serial.println(t_servo_crono);
                     }
 
-                    if(millis() - t_servo_crono < t_servo / 1.3 && var_aux_cerrar == true) {
+                    if(millis() - t_servo_crono < t_servo_down && var_aux_cerrar == true) {
                         servo = BAJAR;
                         Serial.println("Empieza a bajar");
                     }
-                    else if(millis() - t_servo_crono >= t_servo / 1.3)  {
+                    else if(millis() - t_servo_crono >= t_servo_down)  {
                         servo = PARO;
                         abrir = false;
                         cerrar = false;
@@ -745,10 +808,14 @@ void loop() {
                 
                 outputs();
             }
-            
+
             if(abierto == true && cerrar == true) abierto = false;
             if(cerrado == true && abrir == true) cerrado = false;
-        
+
+            servo = PARO;
+
+            outputs();
+
         break;
     }
 }
